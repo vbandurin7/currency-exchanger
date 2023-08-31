@@ -6,10 +6,9 @@ import ru.vbandurin.currencyExchanger.exception.RepositoryException;
 import ru.vbandurin.currencyExchanger.repository.CurrencyRepository;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 public class CurrencyRepositoryImpl implements CurrencyRepository {
@@ -33,18 +32,42 @@ public class CurrencyRepositoryImpl implements CurrencyRepository {
             }
 
         } catch (SQLException e) {
-            throw new RepositoryException("Can't find currency.", e);
+            throw new RepositoryException("Can't get connection for finding currency with id=%d.".formatted(id), e);
         }
     }
 
     @Override
-    public Iterable<Currency> findAll() {
-        return null;
+    public List<Currency> findAll() {
+        List<Currency> resultList = new ArrayList<>();
+        try (Connection connection = DATA_SOURCE.getConnection()) {
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery("SELECT * FROM 'Currencies'");
+            while (resultSet.next()) {
+                resultList.add(new Currency(
+                        resultSet.getLong("id"), resultSet.getString("Code"),
+                        resultSet.getString("FullName"), resultSet.getString("Sign")));
+            }
+        } catch (SQLException e) {
+            throw new RepositoryException("Can't get connection for finding all currencies.", e);
+        }
+        return resultList;
     }
 
     @Override
     public <S extends Currency> S save(S entity) {
-        return null;
+        try (Connection connection = DATA_SOURCE.getConnection()) {
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    "INSERT INTO 'Currencies' (Code, FullName, Sign) VALUES (?, ?, ?)");
+            preparedStatement.setString(1, entity.getCode());
+            preparedStatement.setString(2, entity.getFullName());
+            preparedStatement.setString(3, entity.getSign());
+            if (preparedStatement.executeUpdate() != 1) {
+                throw new RepositoryException("Can't save entity " + entity);
+            }
+        } catch (SQLException e) {
+            throw new RepositoryException("Can't get connection for saving currency.", e);
+        }
+        return entity;
     }
 
     private int getRowsCount(ResultSet resultSet) {
