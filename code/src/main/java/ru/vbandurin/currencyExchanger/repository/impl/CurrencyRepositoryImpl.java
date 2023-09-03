@@ -22,6 +22,27 @@ public class CurrencyRepositoryImpl implements CurrencyRepository {
                     "SELECT * FROM 'Currencies' WHERE id=?");
             preparedStatement.setLong(1, id);
             ResultSet resultSet = preparedStatement.executeQuery();
+            return getCurrencyFromResultSet(resultSet);
+        } catch (SQLException e) {
+            throw new RepositoryException("Can't get connection for finding currency with id=%d.".formatted(id), e);
+        }
+    }
+
+    @Override
+    public Optional<Currency> findByCode(String code) {
+        try (Connection connection = DATA_SOURCE.getConnection()) {
+            PreparedStatement preparedStatement = connection.prepareStatement(
+                    "SELECT * FROM 'Currencies' WHERE code=?");
+            preparedStatement.setString(1, code);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            return getCurrencyFromResultSet(resultSet);
+        } catch (SQLException e) {
+            throw new RepositoryException("Can't get connection for finding currency with code=%s.".formatted(code), e);
+        }
+    }
+
+    private Optional<Currency> getCurrencyFromResultSet(ResultSet resultSet) {
+        try {
             if (!resultSet.next()) {
                 return Optional.empty();
             } else {
@@ -30,9 +51,8 @@ public class CurrencyRepositoryImpl implements CurrencyRepository {
                         resultSet.getString("FullName"), resultSet.getString("Sign"));
                 return Optional.of(currency);
             }
-
         } catch (SQLException e) {
-            throw new RepositoryException("Can't get connection for finding currency with id=%d.".formatted(id), e);
+            throw new RepositoryException("Unexpected error occurred while accessing to database", e);
         }
     }
 
